@@ -44,15 +44,19 @@ def parse(page)
   ReverseMarkdown.convert(html)
 end
 
+def prompt(time, text)
+  res = ""
+  res += "Summarize the following daily news in two or three paragraphes. "
+  res += "Include the date in the first paragraph."
+  res += "\n\n"
+  res += time.strftime("# %A, %B %d, %Y")
+  res += "\n\n"
+  res += text
+  res
+end
+
 def summarize(time, text)
-  prompt = ""
-  prompt += "Summarize the following daily news in two or three paragraphes. "
-  prompt += "Include the date in the first paragraph."
-  prompt += "\n\n"
-  prompt += time.strftime("# %A, %B %d, %Y")
-  prompt += "\n\n"
-  prompt += text
-  fmt(model(prompt))
+  fmt(model(prompt(time, text)))
 end
 
 def model(input)
@@ -70,7 +74,7 @@ def model(input)
     puts err
     exit 1
   end
-  res.dig("choices", 0, "message", "content").strip
+  res.dig("choices", 0, "message", "content").strip.tr("–", "-")
 end
 
 def fmt(text)
@@ -85,8 +89,7 @@ end
 def news(time)
   cache = File.expand_path("~/.news.txt")
   if File.exist?(cache) && (Time.now - File.mtime(cache) < 3600)
-    puts File.read(cache)
-    exit
+    return File.read(cache)
   end
   page = fetch(time)
   text = summarize(time, parse(page))
@@ -94,4 +97,20 @@ def news(time)
   text
 end
 
-puts news(Time.now - 24 * 60 * 60)
+if ARGV.include?("--server")
+  port = ENV.fetch("NEWS_PORT", "2001").to_i
+  puts "Listening on 0.0.0.0:#{port}"
+  server = TCPServer.new(port)
+  loop do
+    Thread.start(server.accept) do |client|
+      puts "#{client.peeraddr[3]} - - [#{Time.new}] -"
+      client.puts news(Time.now - 24 * 60 * 60)
+    rescue => e
+      puts "Error: #{e.message}"
+    ensure
+      client.close
+    end
+  end
+else
+  puts news(Time.now - 24 * 60 * 60)
+end

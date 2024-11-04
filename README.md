@@ -48,7 +48,7 @@ highlighted a day otherwise marked by violence, disaster, and political
 unrest.
 ```
 
-TODO: Update this example on a better day...
+TODO: Update this example on a better day
 
 ## License
 
